@@ -1,14 +1,27 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <RootNamespace>QIQI.CMakeCaller</RootNamespace>
     <AssemblyName>QIQI.CMakeCaller</AssemblyName>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/1354092549/CMakeCaller.git</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <Authors>QIQI</Authors>
+    <PackageTags>CMake</PackageTags>
+    <Description>A .NET library that helps you call CMake from C# codes via a VSCode-style flow.</Description>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="BlackFox.VsWhere" Version="1.0.0" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
     <PackageReference Include="System.Runtime" Version="4.3.1" />
     <PackageReference Include="System.Text.RegularExpressions" Version="4.3.1" />
