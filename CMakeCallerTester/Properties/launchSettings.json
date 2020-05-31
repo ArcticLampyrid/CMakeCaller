@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "CMakeCallerTester": {
+      "commandName": "Project",
+      "commandLineArgs": "\"$(SolutionDir)TestCMakeProject\""
+    }
+  }
+}
