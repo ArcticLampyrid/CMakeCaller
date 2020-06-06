@@ -53,6 +53,14 @@ namespace QIQI.CMakeCaller.Kits
             "WINDOWSSDKVERSION",
             "VISUALSTUDIOVERSION"
         };
+        private static Dictionary<int, string> VSGenerators = new Dictionary<int, string> {
+            { 10, "Visual Studio 10 2010" },
+            { 11, "Visual Studio 11 2012" },
+            { 12, "Visual Studio 12 2013" },
+            { 14, "Visual Studio 14 2015" },
+            { 15, "Visual Studio 15 2017" },
+            { 16, "Visual Studio 16 2019" }
+        };
 
         internal static Dictionary<string, string> VarsForVSInstance(string instanceId, string vsArch)
         {
@@ -180,14 +188,29 @@ namespace QIQI.CMakeCaller.Kits
                             Name = $"{VsDisplayName(vsInstance)} - {KitHostTargetArch(hostArch, targetArch)}",
                             VSInstanceId = vsInstance.InstanceId,
                             VSArch = KitHostTargetArch(hostArch, targetArch),
-                            PreferredGenerator = new CMakeGeneratorInfo() 
-                            {
-                                Name = "NMake Makefiles"
-                            }
+                            PreferredGenerator = FindVSGenerator(vsInstance, hostArch, targetArch)
                         };
                     }
                 }
             }
+        }
+
+        private static CMakeGeneratorInfo FindVSGenerator(VsSetupInstance inst, string hostArch, string targetArch)
+        {
+            var installationVersion = new Version(inst.InstallationVersion);
+            if (VSGenerators.TryGetValue(installationVersion.Major, out var generatorName))
+            {
+                return new CMakeGeneratorInfo()
+                {
+                    Name = generatorName,
+                    Platform = targetArch == "x86" ? "win32" : targetArch,
+                    Toolset = $"host={hostArch}"
+                };
+            }
+            return new CMakeGeneratorInfo()
+            {
+                Name = "NMake Makefiles"
+            };
         }
 
         public static IEnumerable<CMakeKitInfo> ScanClangKits()
