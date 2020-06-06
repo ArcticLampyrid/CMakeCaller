@@ -73,6 +73,11 @@ namespace QIQI.CMakeCaller.Kits
             }
             var commonDir = Path.Combine(inst.InstallationPath, "Common7", "Tools");
             var vcvarsScript = "vcvarsall.bat";
+            if (vsArch.IndexOf("arm") != -1)
+            {
+                // For performance
+                vcvarsScript = $"vcvars{vsArch.Replace("x64", "amd64")}.bat";
+            }
             string devbat;
             var installationVersion = new Version(inst.InstallationVersion);
             if (installationVersion.Major < 15)
