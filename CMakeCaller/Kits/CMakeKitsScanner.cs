@@ -67,11 +67,59 @@ namespace QIQI.CMakeCaller.Kits
             VsSetupInstance vsInstance = null;
             if (string.IsNullOrWhiteSpace(instanceId))
             {
-                vsInstance = VsInstances.GetAll().FirstOrDefault();
+                vsInstance = VsInstances.GetAllWithLegacy().FirstOrDefault();
             }
-            vsInstance = vsInstance ?? VsInstances.GetAll().FirstOrDefault(x => x.InstanceId == instanceId);
+            vsInstance = vsInstance ?? VsInstances.GetAllWithLegacy().FirstOrDefault(x => x.InstanceId == instanceId);
             return VarsForVSInstance(vsInstance, vsArch);
         }
+        internal static bool ArchTestForVSInstance(VsSetupInstance inst, string vsArch)
+        {
+            try
+            {
+                return VarsForVSInstance(inst, vsArch).Count != 0;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+        internal static bool GetActiveFileForVSInstance(VsSetupInstance inst, string vsArch, out string commonDir, out string devbat, out string activeArgs)
+        {
+            commonDir = Path.Combine(inst.InstallationPath, "Common7", "Tools");
+            var installationVersion = new Version(inst.InstallationVersion);
+            var devbatDir = installationVersion.Major < 15
+                ? Path.Combine(inst.InstallationPath, "VC")
+                : Path.Combine(inst.InstallationPath, "VC", "Auxiliary", "Build");
+            activeArgs = installationVersion.Major < 15
+                ? vsArch.Replace("x64", "amd64")
+                : vsArch;
+            var vcvarsScript = "vcvarsall.bat";
+            if (vsArch.IndexOf("arm") != -1)
+            {
+                vcvarsScript = $"vcvars{vsArch.Replace("x64", "amd64")}.bat";
+                activeArgs = "";
+            }
+            devbat = Path.Combine(devbatDir, vcvarsScript);
+            if (!File.Exists(devbat))
+            {
+                switch (vsArch)
+                {
+                    case "x86":
+                        vcvarsScript = "vcvars32.bat";
+                        break;
+                    case "x64":
+                        vcvarsScript = "vcvars64.bat";
+                        break;
+                    default:
+                        return false;
+                }
+                activeArgs = "";
+                devbat = Path.Combine(devbatDir, vcvarsScript);
+            }
+            return File.Exists(devbat);
+        }
+
         internal static Dictionary<string, string> VarsForVSInstance(VsSetupInstance inst, string vsArch)
         {
             var result = new Dictionary<string, string>();
@@ -79,24 +127,8 @@ namespace QIQI.CMakeCaller.Kits
             {
                 return result;
             }
-            var commonDir = Path.Combine(inst.InstallationPath, "Common7", "Tools");
-            var vcvarsScript = "vcvarsall.bat";
-            if (vsArch.IndexOf("arm") != -1)
-            {
-                // For performance
-                vcvarsScript = $"vcvars{vsArch.Replace("x64", "amd64")}.bat";
-            }
-            string devbat;
             var installationVersion = new Version(inst.InstallationVersion);
-            if (installationVersion.Major < 15)
-            {
-                devbat = Path.Combine(inst.InstallationPath, "VC", vcvarsScript);
-            }
-            else
-            {
-                devbat = Path.Combine(inst.InstallationPath, "VC", "Auxiliary", "Build", vcvarsScript);
-            }
-            if (File.Exists(devbat))
+            if (GetActiveFileForVSInstance(inst, vsArch, out var commonDir, out var devbat, out var activeArgs))
             {
                 var tempDirectory = Path.GetTempPath();
                 Directory.CreateDirectory(tempDirectory);
@@ -104,11 +136,6 @@ namespace QIQI.CMakeCaller.Kits
                 var batFileName = $"{Guid.NewGuid()}.bat";
                 var envFilePath = Path.Combine(tempDirectory, envFileName);
                 var batFilePath = Path.Combine(tempDirectory, batFileName);
-                var activeArgs = vsArch;
-                if (installationVersion.Major < 15)
-                {
-                    activeArgs = activeArgs.Replace("x64", "amd64");
-                }
                 using (var batFile = File.CreateText(batFilePath))
                 {
                     batFile.WriteLine("@echo off");
@@ -171,15 +198,14 @@ namespace QIQI.CMakeCaller.Kits
 
             var hostArches = new string[] { "x86", "x64" };
             var targetArches = new string[] { "x86", "x64", "arm", "arm64" };
-            foreach (var vsInstance in VsInstances.GetAll())
+            foreach (var vsInstance in VsInstances.GetAllWithLegacy())
             {
                 foreach (var hostArch in hostArches)
                 {
                     foreach (var targetArch in targetArches)
                     {
                         var vsArch = KitHostTargetArch(hostArch, targetArch);
-                        var vsEnv = VarsForVSInstance(vsInstance, vsArch);
-                        if (vsEnv.Count == 0)
+                        if (!ArchTestForVSInstance(vsInstance, vsArch))
                         {
                             continue;
                         }
@@ -310,7 +336,7 @@ namespace QIQI.CMakeCaller.Kits
                 yield break;
             }
 
-            var vsIntances = VsInstances.GetAll();
+            var vsIntances = VsInstances.GetAllWithLegacy();
             var clangClRegex = new Regex(@"^clang-cl.*$", RegexOptions.CultureInvariant);
 
             var searchPaths =
