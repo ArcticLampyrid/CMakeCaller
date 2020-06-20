@@ -42,7 +42,7 @@ namespace QIQI.CMakeCallerTester
                     {
                         Directory.Delete(buildPath, true);
                     }
-                    using (var process = kit.StartConfigure(CMakeEnv.DefaultInstance, sourcePath, buildPath, null, ModifyStartInfo))
+                    using (var process = kit.StartConfigure(CMakeEnv.DefaultInstance, sourcePath, buildPath, default(CMakeConfigureConfig), ModifyStartInfo))
                     {
                         process.WaitForExit();
                         if (process.ExitCode != 0)

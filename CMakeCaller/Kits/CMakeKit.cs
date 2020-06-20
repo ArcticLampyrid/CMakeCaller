@@ -49,7 +49,15 @@ namespace QIQI.CMakeCaller.Kits
             }
         }
         public Process StartConfigure(CMakeEnv cmakeEnv, string pathToSource, string pathToBuild,
-            Dictionary<string, CMakeSetting> userSettings = null, ModifyStartInfo modifyStartInfo = null)
+            Dictionary<string, CMakeSetting> userSettings, ModifyStartInfo modifyStartInfo = null)
+        {
+            return StartConfigure(cmakeEnv, pathToSource, pathToBuild, new CMakeConfigureConfig()
+            {
+                UserSettings = userSettings
+            }, modifyStartInfo);
+        }
+        public Process StartConfigure(CMakeEnv cmakeEnv, string pathToSource, string pathToBuild,
+            CMakeConfigureConfig config = null, ModifyStartInfo modifyStartInfo = null)
         {
             var settings = new Dictionary<string, CMakeSetting>();
             if (kitInfo.PreferredGenerator != null)
@@ -78,21 +86,30 @@ namespace QIQI.CMakeCaller.Kits
             {
                 settings["CMAKE_TOOLCHAIN_FILE"] = new CMakeSetting(kitInfo.ToolchainFile, "FILEPATH");
             }
-            if (userSettings != null)
+            if (config?.UserSettings != null)
             {
-                foreach (var userSetting in userSettings)
+                foreach (var userSetting in config.UserSettings)
                 {
                     settings[userSetting.Key] = userSetting.Value;
                 }
             }
             var settingsArgs = string.Join(" ", settings.Select(x =>
-                x.Value.Type == null ? 
+                x.Value.Type == null ?
                 $"\"-D{x.Key}={x.Value.Value}\"" :
                 $"\"-D{x.Key}:{x.Value.Type}={x.Value.Value}\""));
+            var arguments = $"-S \"{Path.GetFullPath(pathToSource)}\" -B \"{Path.GetFullPath(pathToBuild)}\"";
+            if (!string.IsNullOrEmpty(settingsArgs))
+            {
+                arguments += " " + settingsArgs;
+            }
+            if (config == null || config.NoWarnUnusedCli)
+            {
+                arguments += " --no-warn-unused-cli";
+            }
             var startInfo = new ProcessStartInfo()
             {
                 FileName = cmakeEnv.CMakeBin,
-                Arguments = $"-S \"{Path.GetFullPath(pathToSource)}\" -B \"{Path.GetFullPath(pathToBuild)}\" {settingsArgs}"
+                Arguments = arguments
             };
             ApplyKitEnv(startInfo.EnvironmentVariables);
             modifyStartInfo?.Invoke(startInfo);
