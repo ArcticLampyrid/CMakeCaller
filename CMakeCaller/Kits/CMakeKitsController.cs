@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using QIQI.CMakeCaller.Utilities;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -62,9 +63,7 @@ namespace QIQI.CMakeCaller.Kits
         }
         public static Task ScanKitsAsync()
         {
-            var result = new Task(ScanKits);
-            result.Start();
-            return result;
+            return TaskUtils.StartSTATask(ScanKits);
         }
     }
 }
