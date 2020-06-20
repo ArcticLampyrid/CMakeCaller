@@ -173,13 +173,21 @@ namespace QIQI.CMakeCaller.Kits
                 File.Delete(envFilePath);
                 File.Delete(batFilePath);
             }
-            if(!result.ContainsKey("INCLUDE"))
+            if (!result.ContainsKey("INCLUDE"))
+            {
+                result.Clear();
+            }
+            if (!result.TryGetValue("VCINSTALLDIR", out var vcInstallDir))
+            {
+                result.Clear();
+            }
+            if (!Directory.Exists(vcInstallDir))
             {
                 result.Clear();
             }
             if (result.Count != 0)
             {
-                if(result.TryGetValue("VISUALSTUDIOVERSION", out var vsVersion))
+                if (result.TryGetValue("VISUALSTUDIOVERSION", out var vsVersion))
                 {
                     result[$"VS{vsVersion.Replace(".", "")}COMNTOOLS"] = commonDir;
                 }
