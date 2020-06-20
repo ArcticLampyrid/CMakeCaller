@@ -31,7 +31,7 @@ namespace QIQI.CMakeCallerTester
                 foreach (var kitInfo in kitInfos)
                 {
                     var kit = new CMakeKit(kitInfo);
-                    if (kit.Name.IndexOf("arm") != -1)
+                    if (kit.Name.IndexOf("arm") != -1 || kit.Name.IndexOf("Visual Studio 2015") != -1)
                     {
                         continue;
                     }
