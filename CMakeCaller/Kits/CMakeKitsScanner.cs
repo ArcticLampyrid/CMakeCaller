@@ -229,6 +229,19 @@ namespace QIQI.CMakeCaller.Kits
             }
         }
 
+        private static CMakeGeneratorInfo FindNinja() 
+        {
+            var ninjaPath = PathUtils.Which("ninja");
+            if (ninjaPath != null)
+            {
+                return new CMakeGeneratorInfo()
+                {
+                    Name = "Ninja"
+                };
+            }
+            return null;
+        }
+
         private static CMakeGeneratorInfo FindVSGenerator(VsSetupInstance inst, string hostArch, string targetArch)
         {
             var installationVersion = new Version(inst.InstallationVersion);
@@ -241,7 +254,7 @@ namespace QIQI.CMakeCaller.Kits
                     Toolset = $"host={hostArch}"
                 };
             }
-            return new CMakeGeneratorInfo()
+            return FindNinja() ?? new CMakeGeneratorInfo()
             {
                 Name = "NMake Makefiles"
             };
@@ -320,7 +333,9 @@ namespace QIQI.CMakeCaller.Kits
                 {
                     kitInfo.Compilers["CXX"] = gxxFile;
                 }
-                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) 
+                kitInfo.PreferredGenerator = FindNinja();
+                if (kitInfo.PreferredGenerator == null
+                    && RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
                     && version.Target.EndsWith("-mingw32"))
                 {
                     var mingw32Make = Path.Combine(Path.GetDirectoryName(gccFile), "mingw32-make.exe");
@@ -383,7 +398,7 @@ namespace QIQI.CMakeCaller.Kits
                         },
                         VSInstanceId = vsInstance.InstanceId,
                         VSArch = vsArch,
-                        PreferredGenerator = new CMakeGeneratorInfo()
+                        PreferredGenerator = FindNinja() ?? new CMakeGeneratorInfo()
                         {
                             Name = "NMake Makefiles"
                         }
