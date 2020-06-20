@@ -12,7 +12,7 @@ namespace QIQI.CMakeCallerTester
     {
         static void ModifyStartInfo(ProcessStartInfo x)
         {
-            x.CreateNoWindow = true;
+            //Nothing to do here.
         }
         static int Main(string[] args)
         {
