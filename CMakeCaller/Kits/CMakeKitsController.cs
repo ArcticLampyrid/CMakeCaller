@@ -1,11 +1,11 @@
 ﻿using Newtonsoft.Json;
-using QIQI.CMakeCaller.Utilities;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
+using BlackFox.VsWhere;
 
 namespace QIQI.CMakeCaller.Kits
 {
@@ -63,7 +63,8 @@ namespace QIQI.CMakeCaller.Kits
         }
         public static Task ScanKitsAsync()
         {
-            return TaskUtils.StartSTATask(ScanKits);
+            VsInstances.GetAll(); //Init on main thread
+            return Task.Run(ScanKits);
         }
     }
 }
