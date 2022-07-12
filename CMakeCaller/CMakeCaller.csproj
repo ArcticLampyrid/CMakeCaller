@@ -9,9 +9,9 @@
     <RootNamespace>QIQI.CMakeCaller</RootNamespace>
     <AssemblyName>QIQI.CMakeCaller</AssemblyName>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <RepositoryUrl>https://github.com/1354092549/CMakeCaller.git</RepositoryUrl>
+    <RepositoryUrl>https://github.com/ArcticLampyrid/CMakeCaller.git</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <Authors>QIQI</Authors>
+    <Authors>ArcticLampyrid</Authors>
     <PackageTags>CMake</PackageTags>
     <Description>A .NET library that helps you call CMake from C# codes via a VSCode-style flow.</Description>
   </PropertyGroup>
