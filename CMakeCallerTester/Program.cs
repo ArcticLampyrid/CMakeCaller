@@ -25,7 +25,7 @@ namespace QIQI.CMakeCallerTester
                 kitInfos.Add(kitInfo);
                 Console.WriteLine($"Found Kit: {kitInfo.Name}");
             }
-            kitInfos.Add(CMakeKitsScanner.ScanAllKits().First());
+            CMakeKitsController.SetKits(kitInfos);
             if (!string.IsNullOrEmpty(testProjectPath))
             {
                 foreach (var kitInfo in kitInfos)
