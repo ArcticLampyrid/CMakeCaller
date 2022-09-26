@@ -1,11 +1,12 @@
-﻿using Newtonsoft.Json;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using BlackFox.VsWhere;
+using System.Text.Json;
+using System.Text.Encodings.Web;
 
 namespace QIQI.CMakeCaller.Kits
 {
@@ -34,7 +35,10 @@ namespace QIQI.CMakeCaller.Kits
             List<CMakeKitInfo> kits;
             try
             {
-                kits = JsonConvert.DeserializeObject<List<CMakeKitInfo>>(File.ReadAllText(CacheFileV1, Encoding.UTF8));
+                using (var stream = File.OpenRead(CacheFileV1))
+                {
+                    kits = JsonSerializer.Deserialize<List<CMakeKitInfo>>(stream);
+                }
             }
             catch (Exception)
             {
@@ -50,8 +54,13 @@ namespace QIQI.CMakeCaller.Kits
         {
             try
             {
-                var content = JsonConvert.SerializeObject(kits, Formatting.Indented);
-                File.WriteAllText(CacheFileV1, content, Encoding.UTF8);
+                using (var stream = File.Open(CacheFileV1, FileMode.Create))
+                {
+                    JsonSerializer.Serialize(stream, kits, new JsonSerializerOptions()
+                    {
+                        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+                    });
+                }
             }
             catch (Exception)
             {
