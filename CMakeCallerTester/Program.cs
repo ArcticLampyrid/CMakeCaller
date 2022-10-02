@@ -31,8 +31,11 @@ namespace QIQI.CMakeCallerTester
                 foreach (var kitInfo in kitInfos)
                 {
                     var kit = new CMakeKit(kitInfo);
-                    if (kit.Name.IndexOf("arm") != -1 || kit.Name.IndexOf("Visual Studio 2015") != -1)
+                    if (kit.Name.Contains("arm") 
+                        && (kit.Name.Contains("Visual Studio 2015") || kit.Name.Contains("Visual Studio 2013") || kit.Name.Contains("Visual Studio 2012")))
                     {
+                        // Compiling Desktop applications for the ARM platform is not supported without tricks
+                        // Just skip it
                         continue;
                     }
                     Console.WriteLine($"Test Kit: {kitInfo.Name}");

@@ -89,16 +89,43 @@ namespace QIQI.CMakeCaller.Kits
         {
             commonDir = Path.Combine(inst.InstallationPath, "Common7", "Tools");
             var installationVersion = new Version(inst.InstallationVersion);
+            var amd64StyleVSArch = vsArch.Replace("x64", "amd64");
+            if (installationVersion.Major < 15
+                && !File.Exists(Path.Combine(inst.InstallationPath, "Common7", "IDE", "devenv.exe")))
+            {
+                // https://stackoverflow.com/a/46015781/5549179
+                var instWithVCVersion = VsInstances.GetCompleted(true)
+                    .First(x => new Version(x.InstallationVersion) >= new Version(15, 3));
+                var devbatWithVCVersion = Path.Combine(instWithVCVersion.InstallationPath, "VC", "Auxiliary", "Build", "vcvarsall.bat");
+                if (File.Exists(devbatWithVCVersion)
+                    && File.ReadAllText(devbatWithVCVersion, Encoding.UTF8).Contains("vcvars_ver"))
+                {
+                    // check whether the required platform is installed
+                    if (!vsArch.Contains("arm")
+                        || Directory.Exists(Path.Combine(inst.InstallationPath, "VC", "bin", amd64StyleVSArch)))
+                    {
+                        devbat = devbatWithVCVersion;
+                        activeArgs = $"{amd64StyleVSArch} -vcvars_ver={inst.InstallationVersion}";
+                        return true;
+                    }
+                }
+                else
+                {
+                    devbat = string.Empty;
+                    activeArgs = string.Empty;
+                    return false;
+                }
+            }
             var devbatDir = installationVersion.Major < 15
                 ? Path.Combine(inst.InstallationPath, "VC")
                 : Path.Combine(inst.InstallationPath, "VC", "Auxiliary", "Build");
             activeArgs = installationVersion.Major < 15
-                ? vsArch.Replace("x64", "amd64")
+                ? amd64StyleVSArch
                 : vsArch;
             var vcvarsScript = "vcvarsall.bat";
-            if (vsArch.IndexOf("arm") != -1)
+            if (vsArch.Contains("arm"))
             {
-                vcvarsScript = $"vcvars{vsArch.Replace("x64", "amd64")}.bat";
+                vcvarsScript = $"vcvars{amd64StyleVSArch}.bat";
                 activeArgs = "";
             }
             devbat = Path.Combine(devbatDir, vcvarsScript);
