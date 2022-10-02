@@ -1,17 +1,19 @@
-#include<iostream>
-using namespace std;
+#ifdef _MSC_VER
+#define _CRT_SECURE_NO_WARNINGS
+#endif
+#include <stdio.h>
 int main()
 {
-    cout<<"Hello World"<<endl;
+    printf("Hello World\n");
 #ifdef __cplusplus
-    cout<<"C++ Language Specification Version: "<<__cplusplus<<endl;
+    printf("C++ Language Specification Version: %ld\n", (long)__cplusplus);
 #endif
 #if defined(__clang__)
-    cout<<"Compiler: Clang, Version="<<__clang_major__<<"."<<__clang_minor__<<"."<<__clang_patchlevel__<<endl;
+    printf("Compiler: Clang, Version=%ld.%ld.%ld\n", (long)__clang_major__, (long)__clang_minor__, (long)__clang_patchlevel__);
 #elif defined(__GNUC__)
-    cout<<"Compiler: GCC, Version="<<__GNUC__<<"."<<__GNUC_MINOR__<<"."<<__GNUC_PATCHLEVEL__<<endl;
+    printf("Compiler: Clang, Version=%ld.%ld.%ld\n", (long)__GNUC__, (long)__GNUC_MINOR__, (long)__GNUC_PATCHLEVEL__);
 #elif defined(_MSC_VER)
-    cout<<"Compiler: MSVC, Version="<<_MSC_VER<<endl;
+    printf("Compiler: MSVC, Version=%ld\n", (long)_MSC_VER);
 #endif
     return 0;
 }
