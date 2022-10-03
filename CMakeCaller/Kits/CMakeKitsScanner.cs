@@ -293,13 +293,22 @@ namespace QIQI.CMakeCaller.Kits
         {
             var clangRegex = new Regex(@"^clang(-\d+(\.\d+(\.\d+)?)?)?(\.exe)?$", RegexOptions.CultureInvariant);
             var clangs = PathUtils.FindFilesInEnvironment(clangRegex);
-            return clangs.SelectMany(clangFile => TryFromClang(clangFile));
+            var toolSets = new HashSet<string>();
+            return clangs.SelectMany(clangFile => TryFromClang(clangFile, toolSets));
         }
 
-        public static IEnumerable<CMakeKitInfo> TryFromClang(string clangFile)
+        public static IEnumerable<CMakeKitInfo> TryFromClang(string clangFile, HashSet<string> toolSets = null)
         {
             var clangxxFile = clangFile.Replace("clang", "clang++");
             var version = ClangVersionInfo.GetFrom(clangFile);
+            if (toolSets != null)
+            {
+                if (toolSets.Contains(version.FullVersion))
+                {
+                    yield break;
+                }
+                toolSets.Add(version.FullVersion);
+            }
             if (version == null)
             {
                 yield break;
