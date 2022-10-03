@@ -322,6 +322,7 @@ namespace QIQI.CMakeCaller.Kits
             {
                 kitInfo.Compilers["CXX"] = clangxxFile;
             }
+            kitInfo.AdditionalPaths = new List<string>() { Path.GetDirectoryName(clangFile) };
             yield return kitInfo;
         }
 
@@ -372,6 +373,7 @@ namespace QIQI.CMakeCaller.Kits
                 kitInfo.Compilers["CXX"] = gxxFile;
             }
             kitInfo.PreferredGenerator = FindNinja();
+            kitInfo.AdditionalPaths = new List<string>() { Path.GetDirectoryName(gccFile) };
             if (kitInfo.PreferredGenerator == null
                 && RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
                 && version.Target.EndsWith("-mingw32"))
@@ -379,7 +381,6 @@ namespace QIQI.CMakeCaller.Kits
                 var mingw32Make = Path.Combine(Path.GetDirectoryName(gccFile), "mingw32-make.exe");
                 if (File.Exists(mingw32Make))
                 {
-                    kitInfo.AdditionalPaths = new List<string>() { Path.GetDirectoryName(mingw32Make) };
                     kitInfo.PreferredGenerator = new CMakeGeneratorInfo()
                     {
                         Name = "MinGW Makefiles"
