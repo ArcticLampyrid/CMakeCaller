@@ -312,12 +312,19 @@ namespace QIQI.CMakeCaller.Kits
             }
             var kitInfo = new CMakeKitInfo()
             {
-                Name = $"Clang {version.Version} ({version.Target})",
                 Compilers = new Dictionary<string, string>()
                     {
                         { "C", clangFile }
                     }
             };
+            if (string.IsNullOrEmpty(version.Version))
+            {
+                kitInfo.Name = $"Clang ({version.Target})";
+            }
+            else
+            {
+                kitInfo.Name = $"Clang {version.Version} ({version.Target})";
+            }
             if (File.Exists(clangxxFile))
             {
                 kitInfo.Compilers["CXX"] = clangxxFile;
@@ -362,12 +369,19 @@ namespace QIQI.CMakeCaller.Kits
             }
             var kitInfo = new CMakeKitInfo()
             {
-                Name = $"GCC {version.Version} ({version.Target})",
                 Compilers = new Dictionary<string, string>()
                     {
                         { "C", gccFile }
                     }
             };
+            if (string.IsNullOrEmpty(version.Version))
+            {
+                kitInfo.Name = $"GCC ({version.Target})";
+            }
+            else
+            {
+                kitInfo.Name = $"GCC {version.Version} ({version.Target})";
+            }
             if (File.Exists(gxxFile))
             {
                 kitInfo.Compilers["CXX"] = gxxFile;
