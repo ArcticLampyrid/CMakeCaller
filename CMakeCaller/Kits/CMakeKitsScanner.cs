@@ -28,7 +28,7 @@ namespace QIQI.CMakeCaller.Kits
         {
             return hostArch == targetArch ? hostArch : $"{hostArch}_{targetArch}";
         }
-        private static string[] MSVCEnvironmentVariables = new string[] {
+        private static readonly string[] MSVCEnvironmentVariables = new string[] {
             "CL",
             "_CL_",
             "INCLUDE",
@@ -53,7 +53,9 @@ namespace QIQI.CMakeCaller.Kits
             "WINDOWSSDKVERSION",
             "VISUALSTUDIOVERSION"
         };
-        private static Dictionary<int, string> VSGenerators = new Dictionary<int, string> {
+        private static readonly string[] MSVCHostArches = new string[] { "x86", "x64" };
+        private static readonly string[] MSVCTargetArches = new string[] { "x86", "x64", "arm", "arm64" };
+        private static readonly Dictionary<int, string> VSGenerators = new Dictionary<int, string> {
             { 10, "Visual Studio 10 2010" },
             { 11, "Visual Studio 11 2012" },
             { 12, "Visual Studio 12 2013" },
@@ -229,30 +231,29 @@ namespace QIQI.CMakeCaller.Kits
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                yield break;
+                return Array.Empty<CMakeKitInfo>();
             }
+            return VsInstances.GetAllWithLegacy().SelectMany(x => TryFromVSInstance(x));
+        }
 
-            var hostArches = new string[] { "x86", "x64" };
-            var targetArches = new string[] { "x86", "x64", "arm", "arm64" };
-            foreach (var vsInstance in VsInstances.GetAllWithLegacy())
+        public static IEnumerable<CMakeKitInfo> TryFromVSInstance(VsSetupInstance vsInstance)
+        {
+            foreach (var hostArch in MSVCHostArches)
             {
-                foreach (var hostArch in hostArches)
+                foreach (var targetArch in MSVCTargetArches)
                 {
-                    foreach (var targetArch in targetArches)
+                    var vsArch = KitHostTargetArch(hostArch, targetArch);
+                    if (!ArchTestForVSInstance(vsInstance, vsArch))
                     {
-                        var vsArch = KitHostTargetArch(hostArch, targetArch);
-                        if (!ArchTestForVSInstance(vsInstance, vsArch))
-                        {
-                            continue;
-                        }
-                        yield return new CMakeKitInfo
-                        {
-                            Name = $"{VsDisplayName(vsInstance)} - {KitHostTargetArch(hostArch, targetArch)}",
-                            VSInstanceId = vsInstance.InstanceId,
-                            VSArch = KitHostTargetArch(hostArch, targetArch),
-                            PreferredGenerator = FindVSGenerator(vsInstance, hostArch, targetArch)
-                        };
+                        continue;
                     }
+                    yield return new CMakeKitInfo
+                    {
+                        Name = $"{VsDisplayName(vsInstance)} - {KitHostTargetArch(hostArch, targetArch)}",
+                        VSInstanceId = vsInstance.InstanceId,
+                        VSArch = KitHostTargetArch(hostArch, targetArch),
+                        PreferredGenerator = FindVSGenerator(vsInstance, hostArch, targetArch)
+                    };
                 }
             }
         }
@@ -291,34 +292,37 @@ namespace QIQI.CMakeCaller.Kits
         public static IEnumerable<CMakeKitInfo> ScanClangKits()
         {
             var clangRegex = new Regex(@"^clang(-\d+(\.\d+(\.\d+)?)?)?(\.exe)?$", RegexOptions.CultureInvariant);
-            foreach (var clangFile in PathUtils.FindFilesInEnvironment(clangRegex))
+            var clangs = PathUtils.FindFilesInEnvironment(clangRegex);
+            return clangs.SelectMany(clangFile => TryFromClang(clangFile));
+        }
+
+        public static IEnumerable<CMakeKitInfo> TryFromClang(string clangFile)
+        {
+            var clangxxFile = clangFile.Replace("clang", "clang++");
+            var version = ClangVersionInfo.GetFrom(clangFile);
+            if (version == null)
             {
-                var clangxxFile = clangFile.Replace("clang", "clang++");
-                var version = ClangVersionInfo.GetFrom(clangFile);
-                if (version == null)
-                {
-                    continue;
-                }
-                if (version.Target.IndexOf("msvc") != -1)
-                {
-                    // Clang targeting MSVC can't be used without MSVC Enviroment
-                    // These instances will be handled by using clang-cl.exe
-                    continue;
-                }
-                var kitInfo = new CMakeKitInfo()
-                {
-                    Name = $"Clang {version.Version} ({version.Target})",
-                    Compilers = new Dictionary<string, string>()
+                yield break;
+            }
+            if (version.Target.IndexOf("msvc") != -1)
+            {
+                // Clang targeting MSVC can't be used without MSVC Enviroment
+                // These instances will be handled by using clang-cl.exe
+                yield break;
+            }
+            var kitInfo = new CMakeKitInfo()
+            {
+                Name = $"Clang {version.Version} ({version.Target})",
+                Compilers = new Dictionary<string, string>()
                     {
                         { "C", clangFile }
                     }
-                };
-                if (File.Exists(clangxxFile))
-                {
-                    kitInfo.Compilers["CXX"] = clangxxFile;
-                }
-                yield return kitInfo;
+            };
+            if (File.Exists(clangxxFile))
+            {
+                kitInfo.Compilers["CXX"] = clangxxFile;
             }
+            yield return kitInfo;
         }
 
         public static IEnumerable<CMakeKitInfo> ScanGccKits()
@@ -335,64 +339,69 @@ namespace QIQI.CMakeCaller.Kits
             searchPaths = searchPaths.Distinct();
             var gccRegex = new Regex(@"^((\w+-)*)gcc(-\d+(\.\d+(\.\d+)?)?)?(\.exe)?$", RegexOptions.CultureInvariant);
             var gccs = PathUtils.FindFiles(gccRegex, searchPaths);
-            var toolSet = new HashSet<string>();
-            foreach (var gccFile in gccs)
+            var toolSets = new HashSet<string>();
+            return gccs.SelectMany(gccFile => TryFromGcc(gccFile, toolSets));
+        }
+
+        public static IEnumerable<CMakeKitInfo> TryFromGcc(string gccFile, HashSet<string> toolSets = null)
+        {
+            var gxxFile = gccFile.Replace("gcc", "g++");
+            var version = GccVersionInfo.GetFrom(gccFile);
+            if (version == null)
             {
-                var gxxFile = gccFile.Replace("gcc", "g++");
-                var version = GccVersionInfo.GetFrom(gccFile);
-                if (version == null)
+                yield break;
+            }
+            if (toolSets != null)
+            {
+                if (toolSets.Contains(version.FullVersion))
                 {
-                    continue;
+                    yield break;
                 }
-                if (toolSet.Contains(version.FullVersion))
-                {
-                    continue;
-                }
-                toolSet.Add(version.FullVersion);
-                var kitInfo = new CMakeKitInfo()
-                {
-                    Name = $"GCC {version.Version} ({version.Target})",
-                    Compilers = new Dictionary<string, string>()
+                toolSets.Add(version.FullVersion);
+            }
+            var kitInfo = new CMakeKitInfo()
+            {
+                Name = $"GCC {version.Version} ({version.Target})",
+                Compilers = new Dictionary<string, string>()
                     {
                         { "C", gccFile }
                     }
-                };
-                if (File.Exists(gxxFile))
-                {
-                    kitInfo.Compilers["CXX"] = gxxFile;
-                }
-                kitInfo.PreferredGenerator = FindNinja();
-                if (kitInfo.PreferredGenerator == null
-                    && RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
-                    && version.Target.EndsWith("-mingw32"))
-                {
-                    var mingw32Make = Path.Combine(Path.GetDirectoryName(gccFile), "mingw32-make.exe");
-                    if (File.Exists(mingw32Make))
-                    {
-                        kitInfo.AdditionalPaths = new List<string>() { Path.GetDirectoryName(mingw32Make) };
-                        kitInfo.PreferredGenerator = new CMakeGeneratorInfo()
-                        {
-                            Name = "MinGW Makefiles"
-                        };
-                    }
-                }
-                yield return kitInfo;
+            };
+            if (File.Exists(gxxFile))
+            {
+                kitInfo.Compilers["CXX"] = gxxFile;
             }
+            kitInfo.PreferredGenerator = FindNinja();
+            if (kitInfo.PreferredGenerator == null
+                && RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+                && version.Target.EndsWith("-mingw32"))
+            {
+                var mingw32Make = Path.Combine(Path.GetDirectoryName(gccFile), "mingw32-make.exe");
+                if (File.Exists(mingw32Make))
+                {
+                    kitInfo.AdditionalPaths = new List<string>() { Path.GetDirectoryName(mingw32Make) };
+                    kitInfo.PreferredGenerator = new CMakeGeneratorInfo()
+                    {
+                        Name = "MinGW Makefiles"
+                    };
+                }
+            }
+            yield return kitInfo;
         }
 
         public static IEnumerable<CMakeKitInfo> ScanClangClKits()
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                yield break;
+                return Array.Empty<CMakeKitInfo>();
             }
 
-            var vsIntances = VsInstances.GetAllWithLegacy();
+            var vsInstances = VsInstances.GetAllWithLegacy();
             var clangClRegex = new Regex(@"^clang-cl.*$", RegexOptions.CultureInvariant);
 
             var searchPaths =
                 PathUtils.GetSearchPaths()
-                    .Concat(vsIntances.Select(x => Path.Combine(x.InstallationPath, "VC", "Tools", "Llvm", "bin")))
+                    .Concat(vsInstances.Select(x => Path.Combine(x.InstallationPath, "VC", "Tools", "Llvm", "bin")))
                     .Concat(new string[]
                     {
                         "%LLVM_ROOT%\\bin",
@@ -402,36 +411,42 @@ namespace QIQI.CMakeCaller.Kits
                     }.Select(PathUtils.NormalizePath))
                     .Distinct();
             var clangCls = PathUtils.FindFiles(clangClRegex, searchPaths);
-            foreach (var clangClFile in clangCls)
+            return clangCls.SelectMany(clangClFile => TryFromClangCl(clangClFile, vsInstances));
+        }
+
+        public static IEnumerable<CMakeKitInfo> TryFromClangCl(string clangClFile, IEnumerable<VsSetupInstance> vsInstances = null)
+        {
+            var version = ClangVersionInfo.GetFrom(clangClFile);
+            if (version == null)
             {
-                var version = ClangVersionInfo.GetFrom(clangClFile);
-                if (version == null)
+                yield break;
+            }
+            if (vsInstances is null)
+            {
+                vsInstances = VsInstances.GetAllWithLegacy();
+            }
+            foreach (var vsInstance in vsInstances)
+            {
+                var vsArch = "x64";
+                if (version.Target != null && version.Target.IndexOf("i686-pc") != -1)
                 {
-                    continue;
+                    vsArch = "x86";
                 }
-                foreach (var vsInstance in vsIntances)
+                yield return new CMakeKitInfo()
                 {
-                    var vsArch = "x64";
-                    if (version.Target != null && version.Target.IndexOf("i686-pc") != -1)
-                    {
-                        vsArch = "x86";
-                    }
-                    yield return new CMakeKitInfo()
-                    {
-                        Name = $"Clang {version.Version} for MSVC with {VsDisplayName(vsInstance)} ({vsArch})",
-                        Compilers = new Dictionary<string, string>()
+                    Name = $"Clang {version.Version} for MSVC with {VsDisplayName(vsInstance)} ({vsArch})",
+                    Compilers = new Dictionary<string, string>()
                         {
                             { "C", clangClFile },
                             { "CXX", clangClFile }
                         },
-                        VSInstanceId = vsInstance.InstanceId,
-                        VSArch = vsArch,
-                        PreferredGenerator = FindNinja() ?? new CMakeGeneratorInfo()
-                        {
-                            Name = "NMake Makefiles"
-                        }
-                    };
-                }
+                    VSInstanceId = vsInstance.InstanceId,
+                    VSArch = vsArch,
+                    PreferredGenerator = FindNinja() ?? new CMakeGeneratorInfo()
+                    {
+                        Name = "NMake Makefiles"
+                    }
+                };
             }
         }
     }
